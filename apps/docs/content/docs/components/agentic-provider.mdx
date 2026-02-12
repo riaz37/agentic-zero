@@ -1,0 +1,75 @@
+---
+title: AgenticProvider
+description: The root provider component that initializes the agent brain
+---
+
+# AgenticProvider
+
+The `AgenticProvider` is the root component that initializes the XState brain and provides context to all child components.
+
+## Import
+
+```tsx
+import { AgenticProvider, useAgent } from '@agentic-zero/core'
+```
+
+## Usage
+
+Wrap your application (or a section of it) with `AgenticProvider`:
+
+```tsx filename="app/layout.tsx"
+import { AgenticProvider } from '@agentic-zero/core'
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <AgenticProvider
+      config={{
+        autoStart: false,
+        debug: true,
+      }}
+    >
+      {children}
+    </AgenticProvider>
+  )
+}
+```
+
+## Props
+
+| Prop | Type | Required | Description |
+|:--|:--|:--|:--|
+| `config` | `AgenticConfig` | Yes | Configuration object for the agent |
+| `children` | `React.ReactNode` | Yes | Child components that can access agent context |
+
+### AgenticConfig
+
+| Property | Type | Default | Description |
+|:--|:--|:--|:--|
+| `autoStart` | `boolean` | `false` | Automatically start the agent tour on mount |
+| `debug` | `boolean` | `false` | Enable the Agentic Console debug overlay |
+
+## useAgent Hook
+
+Access the agent state and controls from any child component:
+
+```tsx
+import { useAgent } from '@agentic-zero/core'
+
+function MyComponent() {
+  const { state, send } = useAgent()
+
+  return (
+    <div>
+      <p>State: {JSON.stringify(state.value)}</p>
+      <button onClick={() => send({ type: 'START' })}>Start</button>
+    </div>
+  )
+}
+```
+
+### Return Value
+
+| Property | Type | Description |
+|:--|:--|:--|
+| `state` | `StateFrom<typeof agentMachine>` | Current XState snapshot |
+| `send` | `(event: AgentEvent) => void` | Send events to the state machine |

@@ -1,0 +1,122 @@
+---
+title: Quick Start
+description: Build your first Zero-Interaction experience in 5 minutes
+---
+
+# Quick Start
+
+Get a working Agentic Zero integration up and running in 5 minutes.
+
+## Step 1: Wrap Your App with AgenticProvider
+
+The `AgenticProvider` initializes the brain and provides context to all child components.
+
+```tsx filename="app/layout.tsx"
+import { AgenticProvider } from '@agentic-zero/core'
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <AgenticProvider
+          config={{
+            autoStart: false,
+            debug: true,
+          }}
+        >
+          {children}
+        </AgenticProvider>
+      </body>
+    </html>
+  )
+}
+```
+
+### Config Options
+
+| Option | Type | Default | Description |
+|:--|:--|:--|:--|
+| `autoStart` | `boolean` | `false` | Automatically start the agent on mount |
+| `debug` | `boolean` | `false` | Show the Agentic Console overlay |
+
+## Step 2: Add Checkpoints
+
+Mark meaningful sections of your UI with `AgentCheckpoint`. These are the waypoints the agent will navigate through and narrate.
+
+```tsx filename="components/Hero.tsx"
+import { AgentCheckpoint } from '@agentic-zero/core'
+
+export function Hero() {
+  return (
+    <AgentCheckpoint
+      id="hero"
+      narrative="Welcome to our platform. This is where your journey begins."
+    >
+      <section className="hero">
+        <h1>Welcome to the Future</h1>
+        <p>Experience the web like never before.</p>
+      </section>
+    </AgentCheckpoint>
+  )
+}
+```
+
+```tsx filename="components/Features.tsx"
+import { AgentCheckpoint } from '@agentic-zero/core'
+
+export function Features() {
+  return (
+    <AgentCheckpoint
+      id="features"
+      narrative="Here are the key features that make our platform stand out."
+    >
+      <section className="features">
+        <h2>Features</h2>
+        {/* Your feature cards */}
+      </section>
+    </AgentCheckpoint>
+  )
+}
+```
+
+## Step 3: Use the Agent Hook
+
+Access the agent state and controls from any component:
+
+```tsx filename="components/AgentControls.tsx"
+import { useAgent } from '@agentic-zero/core'
+
+export function AgentControls() {
+  const { state, send } = useAgent()
+
+  return (
+    <div>
+      <p>Agent State: {state.value}</p>
+      <button onClick={() => send({ type: 'START' })}>
+        Start Tour
+      </button>
+      <button onClick={() => send({ type: 'PAUSE' })}>
+        Pause
+      </button>
+    </div>
+  )
+}
+```
+
+## Step 4: Enable Debug Console (Optional)
+
+Set `debug: true` in your config to see the **Agentic Console** overlay. It visualizes:
+
+- **State** — What is the agent thinking?
+- **Timeline** — Where is it in the journey?
+- **Context** — What DOM elements does it see?
+
+## What's Next?
+
+- Learn about the [Architecture](/docs/core-concepts/architecture) behind the framework
+- Explore the [Components API](/docs/components/agentic-provider) reference
+- Set up the [Bridge Protocol](/docs/core-concepts/bridge-protocol) for full autonomy

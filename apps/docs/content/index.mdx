@@ -1,18 +1,78 @@
-# Agentic Web Framework
+---
+title: Agentic Zero — The Zero-Interaction Web Framework
+---
 
-**Agentic Web Framework** is a TypeScript SDK that allows you to turn any website into an **autonomous agentic experience**.
+import { Cards } from 'nextra/components'
 
-It provides a "Concierge" for your users—an AI that can navigate, scroll, narrate, and explain your content, ensuring no user ever gets lost or misses key information.
+# Agentic Zero
 
-## Quick Start
+**Transform any website into an autonomous concierge experience.**
+
+Agentic Zero is a powerful SDK that provides a "brain" for your web applications, allowing an AI agent to navigate, narrate, and interact with your site on behalf of — or alongside — your users.
+
+## Get Started in Seconds
 
 ```bash
-npx create-agentic-app my-new-site
+npx create-agentic-zero my-app
+cd my-app
+npm run dev
 ```
 
-## Features
+Or add to an existing project:
 
-- **🧠 Deterministic Brain**: Powered by XState for robust navigation logic.
-- **🌉 Bridge Protocol**: Connects LLMs to the DOM with self-healing capabilities.
-- **🛡️ PII Protection**: Automatically sanitizes data before LLM processing.
-- **🎥 Flight Recorder**: Full session telemetry for debugging.
+```bash
+npm install @agentic-zero/core
+```
+
+## Key Features
+
+<Cards num={2}>
+  <Cards.Card title="🧠 Brain Protocol" href="/docs/core-concepts/brain" style={{ padding: '1.5rem' }}>
+    Deterministic XState state machine that orchestrates navigation, narration, and interruption handling.
+  </Cards.Card>
+  <Cards.Card title="🌉 Bridge Protocol" href="/docs/core-concepts/bridge-protocol" style={{ padding: '1.5rem' }}>
+    A robust layer connecting the LLM to the DOM — with self-correction, Shadow DOM piercing, and tug-of-war interruption management.
+  </Cards.Card>
+  <Cards.Card title="🎭 Visual Layer" href="/docs/visual/holographic-avatar" style={{ padding: '1.5rem' }}>
+    Cinematic Three.js holographic avatars that respond to agent state in real-time.
+  </Cards.Card>
+  <Cards.Card title="🛡️ PII Sanitization" href="/docs/advanced/pii-sanitizer" style={{ padding: '1.5rem' }}>
+    Automatic redaction of sensitive data (credit cards, emails, SSNs) before LLM transmission.
+  </Cards.Card>
+  <Cards.Card title="🎥 Flight Recorder" href="/docs/advanced/flight-recorder" style={{ padding: '1.5rem' }}>
+    Black-box telemetry for debugging and full session transparency.
+  </Cards.Card>
+  <Cards.Card title="🗣️ Narrative Engine" href="/docs/bridge/narrative-engine" style={{ padding: '1.5rem' }}>
+    Streaming AI commentary using the Vercel AI SDK.
+  </Cards.Card>
+</Cards>
+
+## Architecture
+
+The framework is built on a **Bridge Pattern**:
+
+1. **The Brain (XState)** — Decides *intent* (e.g., "Go to Pricing")
+2. **The Orchestrator** — Translates intent into *action* (e.g., "Scroll to #pricing")
+3. **The Bridge** — Executes action and *verifies* result (e.g., "Is #pricing visible?")
+
+## Quick Example
+
+```tsx
+import { AgenticProvider, AgentCheckpoint } from '@agentic-zero/core'
+
+export default function App() {
+  return (
+    <AgenticProvider config={{ autoStart: false, debug: true }}>
+      <AgentCheckpoint id="hero" narrative="Welcome to the future.">
+        <section>
+          <h1>Hello World</h1>
+        </section>
+      </AgentCheckpoint>
+    </AgenticProvider>
+  )
+}
+```
+
+## License
+
+MIT © [Agentic Zero Team](https://github.com/riaz37)

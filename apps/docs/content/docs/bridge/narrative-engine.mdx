@@ -1,0 +1,47 @@
+---
+title: NarrativeEngine
+description: Streaming AI commentary via the Vercel AI SDK
+---
+
+# NarrativeEngine
+
+The `NarrativeEngine` handles streaming AI narration for each checkpoint, connecting to your LLM backend via the [Vercel AI SDK](https://sdk.vercel.ai/).
+
+## Import
+
+```ts
+import { NarrativeEngine } from '@agentic-zero/core'
+import type { NarrativeConfig } from '@agentic-zero/core'
+```
+
+## Configuration
+
+```ts
+interface NarrativeConfig {
+  /** API endpoint for the narrative stream */
+  endpoint?: string
+  /** System prompt template for narration */
+  systemPrompt?: string
+  /** Maximum tokens per narration */
+  maxTokens?: number
+  /** Temperature for LLM generation */
+  temperature?: number
+}
+```
+
+## How It Works
+
+1. The brain enters the `narrating` state with the current checkpoint context
+2. The engine sends the checkpoint's DOM context (sanitized by `PIISanitizer`) to the LLM
+3. Tokens stream back and are forwarded to the `NarrativeSynthesizer` component
+4. On completion, the engine signals the brain to transition to the next state
+
+## Server-Side Security
+
+The `NarrativeEngine` is designed for **server-side LLM processing**. Your API keys stay on the server:
+
+```
+Client (checkpoint context) → Server (LLM API call) → Client (streamed response)
+```
+
+The client only sends sanitized DOM context. The server handles the actual LLM communication.

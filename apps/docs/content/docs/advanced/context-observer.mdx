@@ -1,0 +1,50 @@
+---
+title: Context Observer
+description: DOM mutation and viewport observation for checkpoint discovery
+---
+
+# Context Observer
+
+The `ContextObserver` watches the DOM for mutations and viewport changes, enabling the agent to dynamically discover and track checkpoints.
+
+## Import
+
+```ts
+import { ContextObserver } from '@agentic-zero/core'
+```
+
+## Responsibilities
+
+| Task | Method |
+|:--|:--|
+| Watch for new checkpoints | `MutationObserver` on `document.body` |
+| Track viewport visibility | `IntersectionObserver` on checkpoint elements |
+| Detect DOM removal | `MutationObserver` for removed nodes |
+| Report changes | Callback to `BridgeOrchestrator` |
+
+## Dynamic Discovery
+
+Unlike static configuration, the `ContextObserver` discovers checkpoints **at runtime**:
+
+```tsx
+// This checkpoint will be discovered even if added after mount
+{showPricing && (
+  <AgentCheckpoint id="pricing" narrative="Let's look at pricing.">
+    <PricingSection />
+  </AgentCheckpoint>
+)}
+```
+
+When a new `AgentCheckpoint` mounts, the `ContextObserver` detects it via `MutationObserver` and notifies the brain to update its checkpoint list.
+
+## Viewport Tracking
+
+The observer uses `IntersectionObserver` to track which checkpoints are currently visible:
+
+- Helps the brain decide which checkpoint to navigate to next
+- Enables "skip already visible" optimization
+- Powers the timeline indicator in the `AgenticConsole`
+
+## Cleanup
+
+The observer automatically disconnects its `MutationObserver` and `IntersectionObserver` instances when the `AgenticProvider` unmounts.

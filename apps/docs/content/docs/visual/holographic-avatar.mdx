@@ -1,0 +1,62 @@
+---
+title: HolographicAvatar
+description: Three.js-powered holographic avatar that responds to agent state
+---
+
+# HolographicAvatar
+
+The `HolographicAvatar` is a cinematic 3D avatar built with [Three.js](https://threejs.org/) via `@react-three/fiber`. It visually responds to the agent's state in real-time.
+
+## Import
+
+```tsx
+import { HolographicAvatar } from '@agentic-zero/core'
+```
+
+## Usage
+
+```tsx
+import { AgenticProvider, HolographicAvatar } from '@agentic-zero/core'
+
+export default function App() {
+  return (
+    <AgenticProvider config={{ autoStart: false }}>
+      <HolographicAvatar />
+      {/* Your app content */}
+    </AgenticProvider>
+  )
+}
+```
+
+## State Reactions
+
+The avatar changes its visual appearance based on the agent state:
+
+| Agent State | Avatar Behavior |
+|:--|:--|
+| `idle` | Gentle ambient glow, slow pulse |
+| `scanning` | Rapid particles, scanning animation |
+| `navigating` | Directional movement, trail effects |
+| `narrating` | Voice wave visualization, glow intensifies |
+| `paused` | Dims, fades to background |
+| `error` | Red tint, glitch effect |
+| `complete` | Celebratory burst, fades out |
+
+## Requirements
+
+The `HolographicAvatar` requires WebGL support. For browsers without WebGL or for server-side rendering, use the `SVGFallbackAvatar` instead.
+
+## SVG Fallback
+
+```tsx
+import { SVGFallbackAvatar, shouldUseFallback } from '@agentic-zero/core'
+
+function Avatar() {
+  if (shouldUseFallback()) {
+    return <SVGFallbackAvatar />
+  }
+  return <HolographicAvatar />
+}
+```
+
+The `shouldUseFallback()` utility checks for WebGL support and returns `true` if the SVG fallback should be used.

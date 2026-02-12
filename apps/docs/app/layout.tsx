@@ -1,38 +1,52 @@
 import { Footer, Layout, Navbar } from 'nextra-theme-docs'
 import { Head } from 'nextra/components'
 import { getPageMap } from 'nextra/page-map'
-import { AgenticClient } from '../components/AgenticClient'
 import 'nextra-theme-docs/style.css'
 
 export const metadata = {
-    title: 'Agentic Zero - The Zero-Interaction Web Framework',
-    description: 'The Agentic Zero SDK — Transform any website into an autonomous concierge experience.',
+    title: {
+        default: 'Agentic Zero',
+        template: '%s — Agentic Zero',
+    },
+    description:
+        'Transform any website into an autonomous concierge experience. The Zero-Interaction Web Framework.',
 }
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-    const navbar = (
-        <Navbar
-            logo={<b>Agentic Zero</b>}
-            projectLink="https://github.com/agentic-zero/framework"
-        />
-    )
-    const footer = <Footer>Agentic Zero © {new Date().getFullYear()}</Footer>
+const navbar = (
+    <Navbar
+        logo={
+            <span style={{ fontWeight: 800, fontSize: '1.1rem' }}>
+                🧠 Agentic Zero
+            </span>
+        }
+        projectLink="https://github.com/riaz37/agentic-zero"
+    />
+)
 
+const footer = (
+    <Footer>
+        MIT {new Date().getFullYear()} © Agentic Zero.
+    </Footer>
+)
+
+export default async function RootLayout({
+    children,
+}: {
+    children: React.ReactNode
+}) {
     return (
         <html lang="en" dir="ltr" suppressHydrationWarning>
             <Head>
-                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                <link rel="icon" href="/favicon.ico" />
             </Head>
             <body>
                 <Layout
                     navbar={navbar}
                     pageMap={await getPageMap()}
-                    docsRepositoryBase="https://github.com/agentic-zero/framework/tree/main/apps/docs"
+                    docsRepositoryBase="https://github.com/riaz37/agentic-zero/tree/main/apps/docs"
                     footer={footer}
                 >
-                    <AgenticClient>
-                        {children}
-                    </AgenticClient>
+                    {children}
                 </Layout>
             </body>
         </html>

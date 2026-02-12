@@ -1,0 +1,81 @@
+---
+title: Architecture
+description: How Agentic Zero is structured — the Bridge Pattern
+---
+
+# Architecture
+
+Agentic Zero is built on a layered **Bridge Pattern** that cleanly separates intent from execution.
+
+## The Three Layers
+
+```
+┌─────────────────────────────────────────┐
+│            🧠 The Brain (XState)        │
+│         Decides intent & state          │
+├─────────────────────────────────────────┤
+│        🎯 The Orchestrator              │
+│    Translates intent into actions       │
+├─────────────────────────────────────────┤
+│           🌉 The Bridge                 │
+│  Executes actions & verifies results    │
+└─────────────────────────────────────────┘
+```
+
+### 1. The Brain (XState State Machine)
+
+The brain is a **deterministic state machine** built with [XState](https://xstate.js.org/). It manages the agent's lifecycle through well-defined states:
+
+- **Idle** — Waiting for activation
+- **Scanning** — Analyzing DOM checkpoints
+- **Navigating** — Scrolling/transitioning to a checkpoint
+- **Narrating** — Streaming LLM-generated narration
+- **Paused** — Interrupted by user interaction
+- **Complete** — Tour finished
+
+The brain never touches the DOM directly — it only emits *intents*.
+
+### 2. The Orchestrator (BridgeOrchestrator)
+
+The `BridgeOrchestrator` receives intents from the brain and coordinates the appropriate bridge modules:
+
+- Routes navigation intents to the **ShadowPiercer** for DOM traversal
+- Activates the **NarrativeEngine** for streaming narration
+- Delegates to the **SelfCorrector** to verify actions succeeded
+- Manages the **InterruptionManager** when users take control
+
+### 3. The Bridge Modules
+
+Each bridge module has a single responsibility:
+
+| Module | Responsibility |
+|:--|:--|
+| `ShadowPiercer` | Recursive DOM traversal through Shadow DOM and iframes |
+| `NarrativeEngine` | Streaming AI commentary via Vercel AI SDK |
+| `SelfCorrector` | Retry logic for missed scrolls or clicks |
+| `InterruptionManager` | Tug-of-war detection between agent and user |
+| `PIISanitizer` | Redaction of sensitive data before LLM |
+| `FlightRecorder` | Session telemetry and debugging |
+| `ContextObserver` | DOM mutation and viewport observation |
+
+## Data Flow
+
+```
+User clicks "Start Tour"
+  → Brain transitions: idle → scanning
+    → Orchestrator discovers checkpoints
+      → Brain transitions: scanning → navigating
+        → ShadowPiercer scrolls to element
+          → SelfCorrector verifies visibility
+            → Brain transitions: navigating → narrating
+              → NarrativeEngine streams commentary
+                → Brain transitions: narrating → navigating (next checkpoint)
+```
+
+## Design Principles
+
+1. **Determinism** — The state machine ensures predictable behavior. Every possible state transition is explicit.
+2. **Separation of Concerns** — The brain doesn't know about the DOM. The bridge doesn't know about state.
+3. **Resilience** — Self-correction and interruption handling make the system robust in the real world.
+4. **Privacy** — PII sanitization ensures sensitive data never reaches the LLM.
+5. **Observability** — The Flight Recorder captures everything for debugging.

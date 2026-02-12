@@ -1,0 +1,51 @@
+---
+title: NarrativeSynthesizer
+description: Stream AI-generated narration as a visual overlay
+---
+
+# NarrativeSynthesizer
+
+The `NarrativeSynthesizer` component renders streaming AI narration as a visual overlay in your application.
+
+## Import
+
+```tsx
+import { NarrativeSynthesizer } from '@agentic-zero/core'
+```
+
+## Usage
+
+Place the `NarrativeSynthesizer` inside your `AgenticProvider`:
+
+```tsx
+import { AgenticProvider, NarrativeSynthesizer } from '@agentic-zero/core'
+
+export default function App({ children }: { children: React.ReactNode }) {
+  return (
+    <AgenticProvider config={{ debug: false }}>
+      {children}
+      <NarrativeSynthesizer />
+    </AgenticProvider>
+  )
+}
+```
+
+## Behavior
+
+- Listens to the brain's `narrating` state
+- Streams text token-by-token with a typewriter effect
+- Automatically positions itself relative to the active checkpoint
+- Fades out when narration completes
+- Respects agent pause/resume events
+
+## Styling
+
+The synthesizer renders with default styles that can be overridden via CSS. The root element has the class `agentic-narrative-synthesizer`.
+
+```css
+.agentic-narrative-synthesizer {
+  /* Customize positioning, colors, fonts, etc. */
+  font-family: 'Inter', sans-serif;
+  color: rgba(255, 255, 255, 0.9);
+}
+```

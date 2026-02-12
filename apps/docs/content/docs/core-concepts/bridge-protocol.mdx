@@ -1,0 +1,80 @@
+---
+title: Bridge Protocol
+description: The connection layer between the AI brain and the DOM
+---
+
+# Bridge Protocol
+
+The Bridge Protocol is the layer that connects the AI brain's *intents* to real *DOM actions*. It's comprised of several specialized modules that work together.
+
+## Overview
+
+The bridge answers one question: **How does an AI's decision become a real-world action on a web page?**
+
+```
+Brain Intent → Orchestrator → Bridge Modules → DOM Action → Verification
+```
+
+## Modules
+
+### BridgeOrchestrator
+
+The central coordinator. It receives intents from the brain and delegates to the appropriate modules.
+
+```ts
+import { BridgeOrchestrator } from '@agentic-zero/core'
+import type { BridgeConfig } from '@agentic-zero/core'
+```
+
+[Full API Reference →](/docs/bridge/bridge-orchestrator)
+
+### ShadowPiercer
+
+Recursively traverses through Shadow DOM boundaries and iframes to "see" elements that normal `querySelector` cannot reach.
+
+```ts
+import { ShadowPiercer } from '@agentic-zero/core'
+import type { PiercedElement } from '@agentic-zero/core'
+```
+
+[Full API Reference →](/docs/bridge/shadow-piercer)
+
+### NarrativeEngine
+
+Handles streaming AI commentary using the Vercel AI SDK. Connects to your LLM backend to generate contextual narration.
+
+```ts
+import { NarrativeEngine } from '@agentic-zero/core'
+import type { NarrativeConfig } from '@agentic-zero/core'
+```
+
+[Full API Reference →](/docs/bridge/narrative-engine)
+
+### SelfCorrector
+
+Automatically retries failed actions (missed scrolls, unclickable buttons) with configurable retry logic and exponential backoff.
+
+```ts
+import { SelfCorrector } from '@agentic-zero/core'
+import type { VerificationResult } from '@agentic-zero/core'
+```
+
+[Full API Reference →](/docs/bridge/self-corrector)
+
+## How It Works
+
+1. **Discovery** — The `ContextObserver` watches for DOM mutations and finds all `AgentCheckpoint` elements
+2. **Navigation** — The `ShadowPiercer` locates the target element and scrolls it into view
+3. **Verification** — The `SelfCorrector` confirms the target is actually visible
+4. **Narration** — The `NarrativeEngine` streams AI commentary for the current checkpoint
+5. **Interruption** — The `InterruptionManager` detects when users scroll or click during the tour
+6. **Sanitization** — The `PIISanitizer` redacts sensitive data before any LLM call
+7. **Recording** — The `FlightRecorder` logs every action for debugging
+
+## Security Model
+
+The bridge is designed with security in mind:
+
+- **Server-side LLM calls** — API keys never leave the server
+- **PII redaction** — Sensitive patterns are sanitized before transmission
+- **DOM isolation** — The agent only reads from checkpointed elements, not arbitrary DOM

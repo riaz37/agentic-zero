@@ -1,0 +1,40 @@
+---
+title: VisualBridge
+description: Connects the agent state to visual effects
+---
+
+# VisualBridge
+
+The `VisualBridge` component connects the agent's brain state to visual feedback elements. It acts as a bridge between the logical state machine and the visual layer.
+
+## Import
+
+```tsx
+import { VisualBridge } from '@agentic-zero/core'
+```
+
+## Usage
+
+```tsx
+import { AgenticProvider, VisualBridge } from '@agentic-zero/core'
+
+export default function App() {
+  return (
+    <AgenticProvider config={{ autoStart: false }}>
+      <VisualBridge />
+      {/* Your app content */}
+    </AgenticProvider>
+  )
+}
+```
+
+## Responsibilities
+
+- **Highlight active checkpoints** — Adds visual indicators around the current checkpoint
+- **Scroll progress** — Shows scroll progress between checkpoints
+- **State indicators** — Displays the current agent state with appropriate visual cues
+- **Transition effects** — Animates transitions between checkpoints using GSAP
+
+## Relationship to HolographicAvatar
+
+The `VisualBridge` handles **DOM-level** visual effects (highlights, scroll indicators), while the `HolographicAvatar` provides a separate **3D canvas** overlay. They work independently and can be used together or separately.

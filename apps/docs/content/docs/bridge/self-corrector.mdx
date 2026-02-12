@@ -1,0 +1,58 @@
+---
+title: SelfCorrector
+description: Automatic retry logic for failed DOM actions
+---
+
+# SelfCorrector
+
+The `SelfCorrector` ensures that navigation actions actually succeed. If a scroll or click doesn't achieve the expected result, it retries with exponential backoff.
+
+## Import
+
+```ts
+import { SelfCorrector } from '@agentic-zero/core'
+import type { VerificationResult } from '@agentic-zero/core'
+```
+
+## Verification Result
+
+```ts
+interface VerificationResult {
+  /** Whether the action succeeded */
+  success: boolean
+  /** The element that was targeted */
+  element: Element | null
+  /** Whether the element is visible in the viewport */
+  isVisible: boolean
+  /** Number of attempts made */
+  attempts: number
+  /** Error message if failed */
+  error?: string
+}
+```
+
+## Retry Logic
+
+1. **Attempt** — Execute the navigation action (scroll to element)
+2. **Verify** — Check if the target element is now visible in the viewport
+3. **Retry** — If not visible, wait with exponential backoff and retry
+4. **Escalate** — After max retries, report failure to the brain
+
+```
+Attempt 1 → Verify → ❌ Not visible
+  Wait 200ms
+Attempt 2 → Verify → ❌ Not visible
+  Wait 400ms
+Attempt 3 → Verify → ✅ Visible → Report success
+```
+
+## Why Self-Correction?
+
+Real-world web pages aren't deterministic:
+
+- **Lazy loading** — Elements may not exist until scrolled near
+- **Animations** — CSS transitions can delay element positioning
+- **Dynamic content** — SPAs may re-render during navigation
+- **Scroll hijacking** — Some pages override default scroll behavior
+
+The `SelfCorrector` handles all these cases automatically.

@@ -1,0 +1,61 @@
+---
+title: PII Sanitizer
+description: Automatic redaction of sensitive data before LLM transmission
+---
+
+# PII Sanitizer
+
+The `PIISanitizer` automatically detects and redacts Personally Identifiable Information (PII) from DOM content before it's sent to the LLM.
+
+## Import
+
+```ts
+import { PIISanitizer } from '@agentic-zero/core'
+import type { SanitizedNode } from '@agentic-zero/core'
+```
+
+## Sanitized Patterns
+
+The sanitizer detects and redacts the following patterns:
+
+| Pattern | Example | Redacted As |
+|:--|:--|:--|
+| Credit Card Numbers | `4111 1111 1111 1111` | `[REDACTED_CC]` |
+| Email Addresses | `user@example.com` | `[REDACTED_EMAIL]` |
+| Social Security Numbers | `123-45-6789` | `[REDACTED_SSN]` |
+| Phone Numbers | `+1 (555) 123-4567` | `[REDACTED_PHONE]` |
+| IP Addresses | `192.168.1.1` | `[REDACTED_IP]` |
+
+## SanitizedNode
+
+```ts
+interface SanitizedNode {
+  /** The sanitized text content */
+  text: string
+  /** Original text (only available in debug mode) */
+  original?: string
+  /** Array of redactions applied */
+  redactions: Array<{
+    type: string
+    position: [number, number]
+  }>
+}
+```
+
+## How It Works
+
+1. The `BridgeOrchestrator` collects DOM text from the active checkpoint
+2. The `PIISanitizer` scans the text with regex patterns
+3. Matched patterns are replaced with type-labeled placeholders
+4. The sanitized text is sent to the LLM
+5. The LLM narration references checkpoints but never sees raw PII
+
+## Why This Matters
+
+When the agent narrates web content, it reads DOM text. This text might contain:
+
+- User-entered form data (credit cards, emails)
+- Displayed personal information (phone numbers, addresses)
+- Backend data rendered in the page (SSNs, IPs)
+
+The `PIISanitizer` ensures **none of this reaches the LLM**.

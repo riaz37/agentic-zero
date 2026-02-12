@@ -1,0 +1,54 @@
+---
+title: Installation
+description: Install Agentic Zero in your project
+---
+
+# Installation
+
+## Requirements
+
+- **Node.js** 18 or later
+- **React** 18 or later
+- **React DOM** 18 or later
+
+## Install the SDK
+
+Add `@agentic-zero/core` to your existing project:
+
+```bash npm2yarn
+npm install @agentic-zero/core
+```
+
+## Peer Dependencies
+
+The SDK requires React as a peer dependency. If you don't already have React installed:
+
+```bash npm2yarn
+npm install react react-dom
+```
+
+## Framework Dependencies
+
+`@agentic-zero/core` bundles the following dependencies internally — you don't need to install them separately:
+
+| Package | Purpose |
+|:--|:--|
+| `xstate` / `@xstate/react` | Brain state machine |
+| `three` / `@react-three/fiber` / `@react-three/drei` | 3D holographic avatars |
+| `framer-motion` | Animations |
+| `gsap` | Advanced scroll/timeline animations |
+| `ai` (Vercel AI SDK) | Streaming LLM narrative |
+| `lucide-react` | Icons |
+
+## Verify Installation
+
+After installing, verify the package is available:
+
+```tsx
+import { AgenticProvider } from '@agentic-zero/core'
+// ✅ No errors — you're ready to go!
+```
+
+## Next Steps
+
+Head to the [Quick Start](/docs/getting-started/quick-start) guide to set up your first agentic experience.

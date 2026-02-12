@@ -1,0 +1,113 @@
+---
+title: Brain (State Machine)
+description: The XState-powered state machine at the heart of Agentic Zero
+---
+
+# Brain (State Machine)
+
+The brain is the central decision-making engine of Agentic Zero. It's implemented as an [XState](https://xstate.js.org/) state machine that manages the full agent lifecycle.
+
+## Import
+
+```tsx
+import { agentMachine } from '@agentic-zero/core'
+import type { AgentContext, AgentEvent } from '@agentic-zero/core'
+```
+
+## States
+
+The agent moves through these deterministic states:
+
+| State | Description |
+|:--|:--|
+| `idle` | Agent is initialized but not started |
+| `scanning` | Discovering `AgentCheckpoint` elements in the DOM |
+| `navigating` | Scrolling or transitioning to the next checkpoint |
+| `narrating` | Streaming LLM narration for the current checkpoint |
+| `paused` | Agent is paused (user interruption or manual pause) |
+| `error` | An unrecoverable error occurred |
+| `complete` | All checkpoints have been visited |
+
+## State Transitions
+
+```
+idle ──[START]──→ scanning
+scanning ──[CHECKPOINTS_FOUND]──→ navigating
+navigating ──[ARRIVED]──→ narrating
+narrating ──[NARRATION_COMPLETE]──→ navigating (next)
+narrating ──[NARRATION_COMPLETE + last]──→ complete
+
+Any State ──[PAUSE]──→ paused
+paused ──[RESUME]──→ (previous state)
+
+Any State ──[ERROR]──→ error
+error ──[RETRY]──→ scanning
+```
+
+## Context
+
+The machine context (`AgentContext`) tracks:
+
+```ts
+interface AgentContext {
+  checkpoints: Checkpoint[]       // Discovered DOM checkpoints
+  currentIndex: number            // Currently active checkpoint index
+  narratives: Map<string, string> // Generated narratives per checkpoint
+  error: string | null            // Last error message
+  retryCount: number              // Number of retry attempts
+  sessionId: string               // Unique session identifier
+}
+```
+
+## Events
+
+Send events to control the agent:
+
+```ts
+type AgentEvent =
+  | { type: 'START' }
+  | { type: 'PAUSE' }
+  | { type: 'RESUME' }
+  | { type: 'STOP' }
+  | { type: 'RETRY' }
+  | { type: 'NEXT' }
+  | { type: 'PREVIOUS' }
+  | { type: 'GOTO'; checkpointId: string }
+```
+
+## Usage with React
+
+The brain is automatically managed by the `AgenticProvider`. Use the `useAgent` hook to access state and send events:
+
+```tsx
+import { useAgent } from '@agentic-zero/core'
+
+function MyComponent() {
+  const { state, send } = useAgent()
+
+  return (
+    <div>
+      <p>Current State: {JSON.stringify(state.value)}</p>
+      <button onClick={() => send({ type: 'START' })}>Start</button>
+      <button onClick={() => send({ type: 'PAUSE' })}>Pause</button>
+      <button onClick={() => send({ type: 'RESUME' })}>Resume</button>
+    </div>
+  )
+}
+```
+
+## Advanced: Direct Machine Usage
+
+For custom implementations outside React, you can use the machine directly with XState:
+
+```ts
+import { createActor } from 'xstate'
+import { agentMachine } from '@agentic-zero/core'
+
+const actor = createActor(agentMachine)
+actor.subscribe((snapshot) => {
+  console.log('State:', snapshot.value)
+})
+actor.start()
+actor.send({ type: 'START' })
+```

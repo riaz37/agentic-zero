@@ -1,0 +1,53 @@
+---
+title: BridgeOrchestrator
+description: The central coordinator between brain intents and DOM actions
+---
+
+# BridgeOrchestrator
+
+The `BridgeOrchestrator` is the central coordinator that receives intents from the brain state machine and delegates them to the appropriate bridge modules.
+
+## Import
+
+```ts
+import { BridgeOrchestrator } from '@agentic-zero/core'
+import type { BridgeConfig } from '@agentic-zero/core'
+```
+
+## Configuration
+
+```ts
+interface BridgeConfig {
+  /** Maximum number of retries for failed actions */
+  maxRetries?: number
+  /** Delay between retries in milliseconds */
+  retryDelay?: number
+  /** Scroll behavior for navigation */
+  scrollBehavior?: 'smooth' | 'instant'
+  /** Viewport margin for element visibility detection */
+  viewportMargin?: number
+  /** Enable PII sanitization before LLM calls */
+  sanitizePII?: boolean
+  /** Enable flight recording */
+  enableRecording?: boolean
+}
+```
+
+## Responsibilities
+
+| Action | Delegate |
+|:--|:--|
+| Navigate to element | `ShadowPiercer` |
+| Verify visibility | `SelfCorrector` |
+| Generate narration | `NarrativeEngine` |
+| Handle interruptions | `InterruptionManager` |
+| Sanitize data | `PIISanitizer` |
+| Record telemetry | `FlightRecorder` |
+
+## Lifecycle
+
+1. **Initialize** — Creates instances of all bridge modules with the provided config
+2. **Connect** — Binds to the XState machine's state transitions
+3. **Execute** — Routes intents to the correct module chain
+4. **Verify** — Confirms each action succeeded before reporting back
+5. **Cleanup** — Disconnects observers and releases resources on unmount

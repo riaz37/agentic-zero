@@ -1,0 +1,63 @@
+---
+title: AgenticConsole
+description: The debug overlay for visualizing agent state and activity
+---
+
+# AgenticConsole
+
+The `AgenticConsole` is a debug overlay that provides real-time insight into the agent's state, timeline, and DOM context.
+
+## Import
+
+```tsx
+import { AgenticConsole } from '@agentic-zero/core'
+```
+
+## Enabling
+
+The console is automatically shown when `debug: true` is set in your `AgenticProvider` config:
+
+```tsx
+<AgenticProvider config={{ debug: true }}>
+  {/* Console overlay appears automatically */}
+  {children}
+</AgenticProvider>
+```
+
+Or use it standalone:
+
+```tsx
+import { AgenticConsole } from '@agentic-zero/core'
+
+export default function DebugLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      {children}
+      <AgenticConsole />
+    </>
+  )
+}
+```
+
+## Panels
+
+The console displays three panels:
+
+### State Panel
+Shows the current XState machine state (e.g., `idle`, `navigating`, `narrating`) and context values including checkpoint list, current index, and session ID.
+
+### Timeline Panel
+Visualizes the agent's journey through checkpoints as a horizontal timeline with progress indicators.
+
+### Context Panel
+Displays the DOM elements the agent currently "sees" — the discovered checkpoints with their IDs, narratives, and visibility status.
+
+## Production
+
+The console should only be enabled during development. Remove or conditionally render it in production:
+
+```tsx
+<AgenticProvider config={{ debug: process.env.NODE_ENV === 'development' }}>
+  {children}
+</AgenticProvider>
+```

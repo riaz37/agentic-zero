@@ -1,11 +1,9 @@
 import nextra from 'nextra'
 
 const withNextra = nextra({
-    // Nextra options can go here
+    // Use the content directory convention
 })
 
 export default withNextra({
-    // Next.js-specific options
     reactStrictMode: true,
-    transpilePackages: ['@agentic-zero/core'],
 })

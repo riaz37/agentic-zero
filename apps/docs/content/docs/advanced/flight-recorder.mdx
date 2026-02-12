@@ -1,0 +1,75 @@
+---
+title: Flight Recorder
+description: Black-box telemetry for debugging agent sessions
+---
+
+# Flight Recorder
+
+The `FlightRecorder` provides full session telemetry — a black-box recording of every action, state transition, and event that occurs during an agent session.
+
+## Import
+
+```ts
+import { FlightRecorder } from '@agentic-zero/core'
+import type { FlightEntry } from '@agentic-zero/core'
+```
+
+## FlightEntry
+
+```ts
+interface FlightEntry {
+  /** Timestamp of the event */
+  timestamp: number
+  /** Type of entry */
+  type: 'state_change' | 'navigation' | 'narration' | 'interruption' | 'error'
+  /** State before the event */
+  fromState?: string
+  /** State after the event */
+  toState?: string
+  /** Additional data payload */
+  data?: Record<string, unknown>
+  /** Session identifier */
+  sessionId: string
+}
+```
+
+## Use Cases
+
+### Debugging
+
+When something goes wrong, the flight recorder tells you exactly what happened:
+
+```ts
+const recorder = new FlightRecorder()
+const entries = recorder.getEntries()
+
+// Filter for errors
+const errors = entries.filter(e => e.type === 'error')
+
+// See the last 10 state changes
+const stateChanges = entries
+  .filter(e => e.type === 'state_change')
+  .slice(-10)
+```
+
+### Analytics
+
+Track how users interact with the agent:
+
+```ts
+const interruptions = entries.filter(e => e.type === 'interruption')
+console.log(`User interrupted the agent ${interruptions.length} times`)
+```
+
+### Session Replay
+
+The full entry log can be serialized and replayed for debugging:
+
+```ts
+const sessionLog = JSON.stringify(recorder.getEntries())
+// Send to your analytics backend
+```
+
+## Integration
+
+The `FlightRecorder` is automatically enabled when `enableRecording: true` in your `BridgeConfig`. The `AgenticConsole` uses it to display the timeline panel.

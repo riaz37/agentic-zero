@@ -1,0 +1,74 @@
+---
+title: CLI Tool
+description: Scaffold new Agentic Zero projects with create-agentic-zero
+---
+
+# CLI Tool
+
+The `create-agentic-zero` CLI lets you scaffold a fully configured Agentic Zero project in seconds.
+
+## Usage
+
+```bash
+npx create-agentic-zero my-app
+```
+
+This will:
+
+1. **Prompt** you for a project name (if not provided) and template
+2. **Scaffold** the project from a template
+3. **Install** all dependencies
+4. **Initialize** a git repository
+
+## Templates
+
+| Template | Description | Status |
+|:--|:--|:--|
+| `nextjs` | Next.js App Router (Recommended) | ✅ Available |
+| `vite` | Vite SPA (Minimal) | 🔜 Coming Soon |
+
+## Options
+
+```bash
+create-agentic-zero [project-directory] [options]
+```
+
+| Option | Description |
+|:--|:--|
+| `[project-directory]` | Directory name for the new project |
+| `-t, --template <template>` | Template to use (`nextjs` or `vite`) |
+
+## Non-Interactive Mode
+
+You can skip the interactive prompts by providing all arguments:
+
+```bash
+npx create-agentic-zero my-app --template nextjs
+```
+
+## What You Get
+
+After scaffolding, your project will have:
+
+```
+my-app/
+├── app/
+│   ├── layout.tsx        # AgenticProvider already configured
+│   └── page.tsx          # Landing page with checkpoints
+├── components/
+│   └── ...               # Pre-built checkpoint components
+├── package.json          # @agentic-zero/core pre-installed
+├── next.config.js
+└── tsconfig.json
+```
+
+## Next Steps
+
+After scaffolding:
+
+```bash
+cd my-app
+npm run dev
+```
+
+Then visit `http://localhost:3000` to see your agent in action.

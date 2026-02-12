@@ -1,0 +1,65 @@
+---
+title: Interruption Manager
+description: Tug-of-war handling between agent and user
+---
+
+# Interruption Manager
+
+The `InterruptionManager` handles the "tug-of-war" between the AI agent and the human user. When a user scrolls, clicks, or otherwise interacts while the agent is running, the manager gracefully pauses and re-engages.
+
+## Import
+
+```ts
+import { InterruptionManager } from '@agentic-zero/core'
+import type { InterruptionState } from '@agentic-zero/core'
+```
+
+## InterruptionState
+
+```ts
+interface InterruptionState {
+  /** Whether the agent is currently interrupted */
+  isInterrupted: boolean
+  /** Type of user action that caused the interruption */
+  cause: 'scroll' | 'click' | 'keyboard' | 'manual' | null
+  /** Timestamp of the interruption */
+  interruptedAt: number | null
+  /** How long the agent has been interrupted (ms) */
+  duration: number
+}
+```
+
+## How It Works
+
+### Detection
+
+The manager listens for user interaction events:
+
+- **Scroll** — User scrolls the page while the agent is navigating
+- **Click** — User clicks an element while the agent is active
+- **Keyboard** — User presses keys during narration
+- **Manual** — User explicitly pauses via UI controls
+
+### Response
+
+When an interruption is detected:
+
+1. **Pause** — The agent immediately pauses its current action
+2. **Yield** — The agent yields control to the user
+3. **Watch** — The manager watches for user inactivity
+4. **Re-engage** — After a configurable timeout, the agent offers to resume
+
+### The Tug-of-War
+
+```
+Agent is navigating...
+  User scrolls → Agent pauses
+    User stops scrolling...
+      3 seconds of inactivity → Agent offers to resume
+        User clicks "Resume" → Agent continues
+        User scrolls again → Timer resets
+```
+
+## Design Principle
+
+The agent should never **fight** the user for control. If a user wants to explore, the agent steps back. If the user stops, the agent politely offers to continue.

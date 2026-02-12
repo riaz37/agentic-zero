@@ -1,5 +1,15 @@
-export default {
-    "index": "Introduction",
-    "guide": "Guide",
-    "api": "API Reference"
+import type { MetaRecord } from 'nextra'
+
+const meta: MetaRecord = {
+    index: {
+        title: 'Home',
+        type: 'page',
+        display: 'hidden',
+    },
+    docs: {
+        title: 'Documentation',
+        type: 'page',
+    },
 }
+
+export default meta

@@ -1,0 +1,59 @@
+---
+title: ShadowPiercer
+description: Recursive DOM traversal through Shadow DOM and iframes
+---
+
+# ShadowPiercer
+
+The `ShadowPiercer` module enables the agent to "see" and interact with DOM elements hidden inside Shadow DOM boundaries and iframes.
+
+## Import
+
+```ts
+import { ShadowPiercer } from '@agentic-zero/core'
+import type { PiercedElement } from '@agentic-zero/core'
+```
+
+## The Problem
+
+Modern web components use Shadow DOM for encapsulation. Standard `document.querySelector` can't reach inside these boundaries:
+
+```
+document
+├── <main-app>
+│   └── #shadow-root
+│       └── <pricing-widget>          ← Not reachable!
+│           └── #shadow-root
+│               └── <price-card>      ← Even less reachable!
+└── <iframe src="chat.html">
+    └── <chat-container>              ← Different document!
+```
+
+## The Solution
+
+The `ShadowPiercer` recursively traverses through all Shadow DOM boundaries and iframes:
+
+```ts
+interface PiercedElement {
+  /** The actual DOM element */
+  element: Element
+  /** CSS selector path through shadow boundaries */
+  path: string
+  /** The shadow root chain used to reach this element */
+  shadowChain: ShadowRoot[]
+  /** Whether the element is inside an iframe */
+  isFramed: boolean
+}
+```
+
+## How It Works
+
+1. **Document scan** — Starts from `document.body`
+2. **Shadow piercing** — When a Shadow Root is found, the crawler enters it
+3. **Iframe bridging** — When an iframe is found, the crawler accesses its `contentDocument`
+4. **Element matching** — Searches for `[data-agent-checkpoint]` attributes at every level
+5. **Path recording** — Builds a full path for later direct access
+
+## Security Note
+
+The ShadowPiercer only reads from the DOM — it never modifies elements it discovers. Iframe access requires same-origin policy compliance.

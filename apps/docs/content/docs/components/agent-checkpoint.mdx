@@ -1,0 +1,82 @@
+---
+title: AgentCheckpoint
+description: Mark DOM waypoints for the agent to navigate and narrate
+---
+
+# AgentCheckpoint
+
+`AgentCheckpoint` marks meaningful sections of your UI as waypoints. The agent will navigate to each checkpoint in order and deliver narration.
+
+## Import
+
+```tsx
+import { AgentCheckpoint } from '@agentic-zero/core'
+```
+
+## Usage
+
+```tsx
+<AgentCheckpoint
+  id="pricing"
+  narrative="Let me walk you through our pricing plans."
+>
+  <section className="pricing">
+    <h2>Pricing</h2>
+    {/* Your pricing content */}
+  </section>
+</AgentCheckpoint>
+```
+
+## Props
+
+| Prop | Type | Required | Description |
+|:--|:--|:--|:--|
+| `id` | `string` | Yes | Unique identifier for this checkpoint |
+| `narrative` | `string` | No | Default narration text for this checkpoint |
+| `children` | `React.ReactNode` | Yes | The UI content to wrap |
+
+## How It Works
+
+1. The component registers itself with the agent brain on mount
+2. During scanning, the brain discovers all checkpoints in DOM order
+3. During navigation, the agent scrolls the checkpoint into view
+4. During narration, the `narrative` prop (or an LLM-generated alternative) is streamed
+
+## Alternative: Data Attributes
+
+You can also mark checkpoints without the component wrapper:
+
+```tsx
+<section
+  data-agent-checkpoint="pricing"
+  data-agent-narrative="Check out our pricing plans."
+>
+  <h2>Pricing</h2>
+</section>
+```
+
+## Multiple Checkpoints Example
+
+```tsx
+export default function LandingPage() {
+  return (
+    <>
+      <AgentCheckpoint id="hero" narrative="Welcome to our platform.">
+        <HeroSection />
+      </AgentCheckpoint>
+
+      <AgentCheckpoint id="features" narrative="Here are our key features.">
+        <FeaturesSection />
+      </AgentCheckpoint>
+
+      <AgentCheckpoint id="pricing" narrative="Let's look at pricing.">
+        <PricingSection />
+      </AgentCheckpoint>
+
+      <AgentCheckpoint id="cta" narrative="Ready to get started?">
+        <CTASection />
+      </AgentCheckpoint>
+    </>
+  )
+}
+```
