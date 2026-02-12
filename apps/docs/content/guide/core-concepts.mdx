@@ -1,0 +1,34 @@
+# Core Concepts
+
+## 🧠 The Agent Machine (Brain)
+
+At the heart of the framework is an **XState Machine** that manages the agent's lifecycle. It is deterministic, meaning the agent always processes events in a predictable way.
+
+### States
+- **Idle**: Waiting for a journey to start.
+- **Pathfinding**: Calculating the next step in the queue.
+- **Navigating**: Moving the scroll position and avatar to the target.
+- **Thinking**: Generating narrative context (LLM streaming).
+- **Narrating**: Speaking/Typing the narrative.
+- **Interrupted**: Paused due to user interaction (Tug-of-War).
+
+## 🌉 The Bridge Protocol
+
+The **Bridge** connects the abstract "Brain" to the concrete "DOM". It handles:
+
+1.  **Scroll Control**: Smooth scrolling to elements.
+2.  **Avatar Flight**: Moving the 3D avatar to specific coordinates.
+3.  **Visual Analysis**: Determining if an element is visible (IntersectionObserver).
+4.  **Shadow Piercing**: Navigating into Shadow DOMs and Iframes.
+
+## 📍 Checkpoints
+
+Checkpoints are the "waypoints" of a journey. You mark them in your HTML:
+
+```html
+<div id="pricing" data-agent-checkpoint="pricing" data-agent-narrative="Our pricing is simple.">
+  ...
+</div>
+```
+
+The agent scans for these attributes to build its **Journey Queue**.

@@ -1,0 +1,62 @@
+{
+  "name": "@agentic-zero/core",
+  "version": "0.1.0-beta.1",
+  "description": "The Agentic Zero SDK — Transform any website into an autonomous concierge experience.",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "tsc && vite build",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": [
+    "agentic",
+    "ai",
+    "web",
+    "sdk",
+    "concierge",
+    "zero"
+  ],
+  "author": "Agentic Zero Team <team@agenticzero.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agentic-zero/framework.git"
+  },
+  "bugs": {
+    "url": "https://github.com/agentic-zero/framework/issues"
+  },
+  "homepage": "https://agenticweb.com",
+  "type": "module",
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.3",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "@vitejs/plugin-react": "^5.1.4",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^4.0.18"
+  },
+  "dependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.5.0",
+    "@types/three": "^0.182.0",
+    "@xstate/react": "^6.0.0",
+    "ai": "^6.0.82",
+    "framer-motion": "^12.34.0",
+    "gsap": "^3.14.2",
+    "lucide-react": "^0.563.0",
+    "three": "^0.182.0",
+    "xstate": "^5.27.0"
+  }
+}

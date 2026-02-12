@@ -1,0 +1,43 @@
+{
+    "name": "create-agentic-zero",
+    "version": "0.1.0-beta.1",
+    "description": "Scaffold a new Agentic Zero Website in seconds",
+    "bin": {
+        "create-agentic-zero": "./bin/cli.js"
+    },
+    "scripts": {
+        "build": "tsc && npm run copy-templates",
+        "copy-templates": "cp -r src/templates dist/",
+        "dev": "tsc -w",
+        "prepublishOnly": "npm run build"
+    },
+    "keywords": [
+        "cli",
+        "generator",
+        "agentic-zero",
+        "starter"
+    ],
+    "author": "Agentic Zero Team <team@agenticzero.com>",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/agentic-zero/framework.git"
+    },
+    "bugs": {
+        "url": "https://github.com/agentic-zero/framework/issues"
+    },
+    "homepage": "https://agenticzero.com",
+    "dependencies": {
+        "chalk": "^4.1.2",
+        "commander": "^11.1.0",
+        "fs-extra": "^11.2.0",
+        "ora": "^5.4.1",
+        "prompts": "^2.4.2"
+    },
+    "devDependencies": {
+        "@types/fs-extra": "^11.0.4",
+        "@types/node": "^20.11.19",
+        "@types/prompts": "^2.4.9",
+        "typescript": "^5.3.3"
+    }
+}
