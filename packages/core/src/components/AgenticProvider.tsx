@@ -4,13 +4,18 @@ import React, { createContext, useContext, useEffect, useMemo, useRef } from 're
 import { useMachine } from '@xstate/react';
 import { createAgentMachine } from '../machine/agentMachine';
 import { BridgeOrchestrator, BridgeConfig } from '../bridge/BridgeOrchestrator';
-import { VisualBridge } from '../avatar/VisualBridge';
-import { AgenticConsole } from './AgenticConsole';
+
+import { LocalOrchestrator } from '../orchestration/LocalOrchestrator';
+
+import { WebSpeechVoiceBridge } from '../voice/WebSpeechVoiceBridge';
+import { VoiceBridge } from '../types/bridge';
 
 export interface AgentContextType {
     state: any;
     send: (event: any) => void;
     bridge: BridgeOrchestrator;
+    voice?: VoiceBridge;
+    orchestrator: LocalOrchestrator;
 }
 
 const AgentContext = createContext<AgentContextType | null>(null);
@@ -19,6 +24,7 @@ export interface AgenticProviderConfig {
     persona?: string;
     autoStart?: boolean;
     debug?: boolean;
+    enableVoice?: boolean;
     apiEndpoint?: string;
     model?: any;
     bridge?: BridgeConfig;
@@ -39,17 +45,33 @@ export const AgenticProvider: React.FC<{
         });
     }, []);
 
-    // Create the machine with the live bridge wired in
-    const machine = useMemo(() => createAgentMachine(bridge), [bridge]);
+    // Create the orchestration adapter (pluggable)
+    const orchestrator = useMemo(() => new LocalOrchestrator(), []);
+
+    // Create voice bridge if enabled
+    const voice = useMemo(() => {
+        return config?.enableVoice ? new WebSpeechVoiceBridge({
+            lang: 'en-US',
+            pitch: 1,
+            rate: 1,
+        }) : undefined;
+    }, [config?.enableVoice]);
+
+    // Create the machine with the live bridge and telemetry wired in
+    const machine = useMemo(() => {
+        return createAgentMachine(bridge, orchestrator, voice, bridge.recorder);
+    }, [bridge, orchestrator, voice]);
     const [state, send] = useMachine(machine);
 
     const [mounted, setMounted] = React.useState(false);
 
-    // Connect the bridge to the machine's send function
+    // Connect the bridge and orchestrator to the machine's send function
     useEffect(() => {
         setMounted(true);
         bridge.connect(send);
-    }, [bridge, send]);
+        orchestrator.connect(send);
+        return () => orchestrator.dispose();
+    }, [bridge, orchestrator, send]);
 
     // Auto-discover checkpoints and start journey
     useEffect(() => {
@@ -76,23 +98,40 @@ export const AgenticProvider: React.FC<{
                 const checkpoints = findAllCheckpoints(document);
 
                 if (checkpoints.length > 0) {
-                    send({ type: 'START_JOURNEY', initialQueue: checkpoints });
+                    orchestrator.trigger('journey.start', { checkpoints });
                 }
             }, 1000);
         }
 
         return () => bridge.stopMonitoring();
-    }, [config?.autoStart, send, bridge, mounted]);
+    }, [config?.autoStart, send, bridge, mounted, orchestrator]);
+
+    // Connect voice events
+    useEffect(() => {
+        if (!voice || !mounted) return;
+
+        voice.setTranscriptHandler((text, isFinal) => {
+            if (isFinal && text.trim().length > 0) {
+                send({ type: 'USER_MESSAGE', text });
+            }
+        });
+
+        voice.setErrorHandler((error) => {
+            send({ type: 'VOICE_ERROR', error });
+        });
+    }, [voice, mounted, send]);
 
     if (!mounted) {
-        return <>{children}</>;
+        return (
+            <AgentContext.Provider value={{ state, send, bridge, voice, orchestrator }}>
+                {children}
+            </AgentContext.Provider>
+        );
     }
 
     return (
-        <AgentContext.Provider value={{ state, send, bridge }}>
+        <AgentContext.Provider value={{ state, send, bridge, voice, orchestrator }}>
             {children}
-            <VisualBridge />
-            {config?.debug && <AgenticConsole />}
         </AgentContext.Provider>
     );
 };

@@ -1,37 +1,44 @@
 import { createMachine, assign, fromPromise } from 'xstate';
+import { AgentBridge, VoiceBridge, TelemetryProvider } from '../types/bridge';
+import { OrchestrationAdapter } from '../types/orchestration';
 
 export interface AgentContext {
     currentCheckpoint: string | null;
     journeyQueue: string[];
+    fullQueue: string[]; // Store full queue for random access
     userInterrupted: boolean;
     narrativeBuffer: string;
     errorCount: number;
+    voiceState: 'idle' | 'listening' | 'thinking' | 'speaking';
+    metadata: Record<string, any>;
+    lastUserMessage?: string;
 }
 
 export type AgentEvent =
     | { type: 'START_JOURNEY'; initialQueue: string[] }
+    | { type: 'CANCEL_JOURNEY' }
     | { type: 'NEXT_MILESTONE' }
     | { type: 'USER_INTERRUPT' }
-    | { type: 'USER_RESUME' }
+    | { type: 'USER_RESUME'; target?: string }
+    | { type: 'USER_MESSAGE'; text: string }
     | { type: 'NARRATION_COMPLETE' }
     | { type: 'TARGET_REACHED' }
     | { type: 'TARGET_FAILED' }
-    | { type: 'ERROR_OCCURRED' };
+    | { type: 'ERROR_OCCURRED'; error?: any }
+    | { type: 'VOICE_ERROR'; error?: string }
+    | { type: 'REHYDRATE_STATE'; context: Partial<AgentContext> };
 
 /**
- * Creates the agent machine with a reference to the BridgeOrchestrator.
- * This factory pattern lets us inject the live bridge at runtime.
+ * Creates the production-grade agent machine.
+ * Decoupled from visual implementation via AgentBridge and VoiceBridge.
+ * Integrated with an OrchestrationAdapter for flow control.
  */
-export function createAgentMachine(bridge: {
-    scrollToTarget: (id: string) => Promise<boolean>;
-    flyAvatarTo: (id: string) => Promise<void>;
-    getNarrativeForCheckpoint: (id: string) => string;
-    retreatAvatar: () => void;
-    killAllAnimations: () => void;
-    startMonitoring: () => void;
-    stopMonitoring: () => void;
-    recorder: { record: (entry: any) => void };
-}) {
+export function createAgentMachine(
+    bridge: AgentBridge,
+    orchestrator?: OrchestrationAdapter,
+    voice?: VoiceBridge,
+    telemetry?: TelemetryProvider
+) {
     return createMachine(
         {
             id: 'agentMind',
@@ -39,10 +46,16 @@ export function createAgentMachine(bridge: {
             context: {
                 currentCheckpoint: null,
                 journeyQueue: [],
+                fullQueue: [],
                 userInterrupted: false,
                 narrativeBuffer: '',
                 errorCount: 0,
+                voiceState: 'idle',
+                metadata: {},
             } as AgentContext,
+            entry: [
+                ({ context, event }) => orchestrator?.onAgentEvent(event, context)
+            ],
             states: {
                 idle: {
                     on: {
@@ -51,12 +64,16 @@ export function createAgentMachine(bridge: {
                             actions: [
                                 assign({
                                     journeyQueue: ({ event }) => (event as any).initialQueue,
+                                    fullQueue: ({ event }) => (event as any).initialQueue,
                                     errorCount: () => 0,
                                 }),
                                 () => bridge.startMonitoring(),
-                                () => bridge.recorder.record({ type: 'state_change', from: 'idle', to: 'pathfinding' }),
+                                () => telemetry?.recordEvent('journey_start', { queue: (event as any).initialQueue }),
                             ],
                         },
+                        REHYDRATE_STATE: {
+                            actions: assign(({ event }) => (event as any).context),
+                        }
                     },
                 },
 
@@ -65,8 +82,8 @@ export function createAgentMachine(bridge: {
                         assign({
                             currentCheckpoint: ({ context }) => context.journeyQueue[0] || null,
                             journeyQueue: ({ context }) => context.journeyQueue.slice(1),
+                            voiceState: 'idle' as const
                         }),
-                        () => bridge.recorder.record({ type: 'state_change', to: 'pathfinding' }),
                     ],
                     after: {
                         300: { target: 'navigating' },
@@ -77,12 +94,19 @@ export function createAgentMachine(bridge: {
                     invoke: {
                         id: 'navigateToTarget',
                         src: fromPromise(async ({ input }: { input: { checkpointId: string } }) => {
-                            // Run scroll and avatar flight in parallel
-                            const [scrollSuccess] = await Promise.all([
-                                bridge.scrollToTarget(input.checkpointId),
-                                bridge.flyAvatarTo(input.checkpointId),
-                            ]);
-                            return scrollSuccess;
+                            const span = telemetry?.startSpan('navigation');
+                            span?.setAttribute('checkpoint', input.checkpointId);
+                            try {
+                                const [scrollSuccess] = await Promise.all([
+                                    bridge.scrollToTarget(input.checkpointId),
+                                    bridge.flyAvatarTo(input.checkpointId),
+                                ]);
+                                span?.end();
+                                return scrollSuccess;
+                            } catch (e) {
+                                span?.end();
+                                throw e;
+                            }
                         }),
                         input: ({ context }: { context: AgentContext }) => ({
                             checkpointId: context.currentCheckpoint!,
@@ -98,51 +122,164 @@ export function createAgentMachine(bridge: {
                         ],
                         onError: {
                             target: 'searching',
-                            actions: () => bridge.recorder.record({ type: 'error', metadata: { reason: 'navigation_failed' } }),
                         },
                     },
                     on: {
                         USER_INTERRUPT: {
                             target: 'interrupted',
-                            actions: () => bridge.recorder.record({ type: 'user_interrupt', metadata: { during: 'navigating' } }),
                         },
                     },
                 },
 
                 thinking: {
-                    entry: [
-                        assign({
-                            narrativeBuffer: ({ context }) =>
-                                bridge.getNarrativeForCheckpoint(context.currentCheckpoint!),
+                    entry: assign({ voiceState: 'thinking' as const }),
+                    invoke: {
+                        src: fromPromise(async ({ input }: { input: { checkpointId: string } }) => {
+                            return bridge.generateNarrative(input.checkpointId);
                         }),
-                        () => bridge.recorder.record({ type: 'state_change', to: 'thinking' }),
-                    ],
-                    after: {
-                        800: { target: 'narrating' },
+                        input: ({ context }: { context: AgentContext }) => ({
+                            checkpointId: context.currentCheckpoint!
+                        }),
+                        onDone: {
+                            target: 'narrating',
+                            actions: assign({
+                                narrativeBuffer: ({ event }) => event.output,
+                                voiceState: 'idle' as const // Will immediately switch to speaking in next state
+                            })
+                        },
+                        onError: {
+                            target: 'narrating',
+                            actions: assign({
+                                narrativeBuffer: ({ context }) =>
+                                    bridge.getNarrativeForCheckpoint(context.currentCheckpoint!), // Fallback to raw text
+                                errorCount: ({ context }) => context.errorCount + 1
+                            })
+                        }
                     },
                     on: {
                         USER_INTERRUPT: {
                             target: 'interrupted',
-                            actions: () => bridge.recorder.record({ type: 'user_interrupt', metadata: { during: 'thinking' } }),
                         },
                     },
                 },
 
                 narrating: {
+                    entry: assign({ voiceState: 'speaking' as const }),
+                    invoke: {
+                        src: fromPromise(async ({ input }: { input: { text: string } }) => {
+                            if (voice) {
+                                await voice.speak(input.text);
+                            } else {
+                                // Fallback: simulate reading time (50ms per char, min 2s)
+                                const duration = Math.max(2000, input.text.length * 50);
+                                await new Promise(resolve => setTimeout(resolve, duration));
+                            }
+                        }),
+                        input: ({ context }: { context: AgentContext }) => ({
+                            text: context.narrativeBuffer
+                        }),
+                        onDone: {
+                            target: 'listening', // Transition to listening instead of checkingNext
+                        },
+                        onError: {
+                            target: 'listening',
+                        }
+                    },
+                    on: {
+                        USER_INTERRUPT: {
+                            target: 'interrupted',
+                        },
+                    },
+                    exit: [
+                        assign({ voiceState: 'idle' as const }),
+                        () => voice?.interrupt()
+                    ]
+                },
+
+                listening: {
                     entry: [
-                        () => bridge.recorder.record({ type: 'state_change', to: 'narrating' }),
+                        assign({ voiceState: 'listening' as const }),
+                        () => voice?.startListening(),
+                    ],
+                    exit: [
+                        () => voice?.stopListening(),
                     ],
                     on: {
-                        NARRATION_COMPLETE: {
-                            target: 'checkingNext',
-                            actions: () => bridge.recorder.record({ type: 'state_change', from: 'narrating', to: 'checkingNext' }),
+                        USER_MESSAGE: {
+                            target: 'processing_input',
                         },
                         USER_INTERRUPT: {
                             target: 'interrupted',
-                            actions: () => bridge.recorder.record({ type: 'user_interrupt', metadata: { during: 'narrating' } }),
                         },
+                        VOICE_ERROR: {
+                            target: 'checkingNext', // Move on if voice fails
+                            actions: assign({
+                                errorCount: ({ context }) => context.errorCount + 1
+                            })
+                        }
+                    },
+                    after: {
+                        8000: { target: 'checkingNext' },
                     },
                 },
+
+                processing_input: {
+                    entry: assign({ voiceState: 'thinking' as const }),
+                    invoke: {
+                        src: fromPromise(async ({ input }: { input: { text: string } }) => {
+                            const text = input.text.toLowerCase();
+                            if (text.includes('next') || text.includes('move on') || text.includes('continue')) {
+                                return { intent: 'NEXT' };
+                            }
+                            if (text.includes('stop') || text.includes('wait')) {
+                                return { intent: 'STOP' };
+                            }
+                            return { intent: 'QUESTION', text: input.text };
+                        }),
+                        input: ({ event }: any) => ({ text: event.text }),
+                        onDone: [
+                            {
+                                target: 'checkingNext',
+                                guard: ({ event }) => event.output.intent === 'NEXT',
+                            },
+                            {
+                                target: 'interrupted',
+                                guard: ({ event }) => event.output.intent === 'STOP',
+                            },
+                            {
+                                target: 'answering',
+                                actions: assign({
+                                    lastUserMessage: ({ event }) => event.output.text
+                                })
+                            },
+                        ],
+                    },
+                },
+
+                answering: {
+                    entry: assign({ voiceState: 'thinking' as const }),
+                    invoke: {
+                        src: fromPromise(async ({ input }: { input: { question: string, checkpointId: string } }) => {
+                            const contextText = bridge.getNarrativeForCheckpoint(input.checkpointId);
+                            return bridge.generateAnswer(input.question, contextText);
+                        }),
+                        input: ({ context }: { context: AgentContext }) => ({
+                            question: context.lastUserMessage!,
+                            checkpointId: context.currentCheckpoint!
+                        }),
+                        onDone: {
+                            target: 'narrating', // Loop back to narrating state to speak the answer
+                            actions: assign({
+                                narrativeBuffer: ({ event }) => event.output,
+                                voiceState: 'idle' as const
+                            })
+                        },
+                        onError: {
+                            target: 'listening', // Fail silently back to listening
+                        }
+                    },
+                },
+
 
                 checkingNext: {
                     always: [
@@ -158,20 +295,29 @@ export function createAgentMachine(bridge: {
                     entry: [
                         () => bridge.killAllAnimations(),
                         () => bridge.retreatAvatar(),
-                        assign({ userInterrupted: () => true }),
-                        () => bridge.recorder.record({ type: 'state_change', to: 'interrupted' }),
+                        () => voice?.interrupt(),
+                        assign({ userInterrupted: true, voiceState: 'idle' as const }),
                     ],
                     on: {
                         USER_RESUME: {
                             target: 'pathfinding',
                             actions: [
-                                assign({ userInterrupted: () => false }),
-                                // Re-queue the current checkpoint since we didn't finish it
+                                assign({ userInterrupted: false }),
                                 assign({
-                                    journeyQueue: ({ context }) =>
-                                        context.currentCheckpoint
+                                    journeyQueue: ({ context, event }) => {
+                                        // If resume event has a target (user scrolled to a specific section),
+                                        // rebuild the queue starting from that target.
+                                        if (event.type === 'USER_RESUME' && event.target) {
+                                            const idx = context.fullQueue.indexOf(event.target);
+                                            if (idx !== -1) {
+                                                return context.fullQueue.slice(idx);
+                                            }
+                                        }
+                                        // Otherwise, resume current flow
+                                        return context.currentCheckpoint
                                             ? [context.currentCheckpoint, ...context.journeyQueue]
-                                            : context.journeyQueue,
+                                            : context.journeyQueue;
+                                    },
                                 }),
                             ],
                         },
@@ -182,7 +328,6 @@ export function createAgentMachine(bridge: {
                 searching: {
                     entry: [
                         assign({ errorCount: ({ context }) => context.errorCount + 1 }),
-                        () => bridge.recorder.record({ type: 'state_change', to: 'searching' }),
                     ],
                     after: {
                         2000: [
@@ -192,7 +337,6 @@ export function createAgentMachine(bridge: {
                             },
                             {
                                 target: 'checkingNext',
-                                actions: () => bridge.recorder.record({ type: 'error', metadata: { reason: 'max_retries_exceeded' } }),
                             },
                         ],
                     },
@@ -201,11 +345,26 @@ export function createAgentMachine(bridge: {
                 completed: {
                     entry: [
                         () => bridge.stopMonitoring(),
-                        () => bridge.recorder.record({ type: 'state_change', to: 'completed' }),
+                        () => telemetry?.recordEvent('journey_completed'),
                     ],
                     type: 'final',
                 },
             },
+            on: {
+                // Global event monitoring for orchestrator
+                '*': {
+                    actions: [
+                        ({ context, event }) => orchestrator?.onAgentEvent(event, context)
+                    ]
+                },
+                CANCEL_JOURNEY: {
+                    target: '.completed',
+                    actions: [
+                        () => bridge.killAllAnimations(),
+                        () => voice?.interrupt(),
+                    ]
+                }
+            }
         }
     );
 }
@@ -213,76 +372,4 @@ export function createAgentMachine(bridge: {
 /**
  * Static machine for unit tests (no bridge dependency).
  */
-export const agentMachine = createMachine(
-    {
-        id: 'agentMind',
-        initial: 'idle',
-        context: {
-            currentCheckpoint: null,
-            journeyQueue: [],
-            userInterrupted: false,
-            narrativeBuffer: '',
-            errorCount: 0,
-        } as AgentContext,
-        states: {
-            idle: {
-                on: {
-                    START_JOURNEY: {
-                        target: 'pathfinding',
-                        actions: assign({
-                            journeyQueue: ({ event }) => (event as any).initialQueue,
-                        }),
-                    },
-                },
-            },
-            pathfinding: {
-                entry: [
-                    assign({
-                        currentCheckpoint: ({ context }) => context.journeyQueue[0] || null,
-                        journeyQueue: ({ context }) => context.journeyQueue.slice(1),
-                    }),
-                ],
-                after: { 300: { target: 'navigating' } },
-            },
-            navigating: {
-                on: {
-                    TARGET_REACHED: 'thinking',
-                    USER_INTERRUPT: 'interrupted',
-                    ERROR_OCCURRED: 'searching',
-                },
-            },
-            thinking: {
-                after: { 800: { target: 'narrating' } },
-                on: { USER_INTERRUPT: 'interrupted' },
-            },
-            narrating: {
-                on: {
-                    NARRATION_COMPLETE: 'checkingNext',
-                    USER_INTERRUPT: 'interrupted',
-                },
-            },
-            checkingNext: {
-                always: [
-                    { target: 'pathfinding', guard: ({ context }) => context.journeyQueue.length > 0 },
-                    { target: 'completed' },
-                ],
-            },
-            interrupted: {
-                on: {
-                    USER_RESUME: 'pathfinding',
-                    NEXT_MILESTONE: 'pathfinding',
-                },
-            },
-            searching: {
-                entry: assign({ errorCount: ({ context }) => context.errorCount + 1 }),
-                after: {
-                    2000: [
-                        { target: 'navigating', guard: ({ context }) => context.errorCount < 3 },
-                        { target: 'checkingNext' },
-                    ],
-                },
-            },
-            completed: { type: 'final' },
-        },
-    }
-);
+export const agentMachine = createMachine({ id: 'agentMind', initial: 'idle', states: { idle: {} } } as any);

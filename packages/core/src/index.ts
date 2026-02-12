@@ -3,15 +3,14 @@
 // ──── Developer-Facing Components ────
 export { AgenticProvider, useAgent } from './components/AgenticProvider';
 export { AgentCheckpoint } from './components/AgentCheckpoint';
-export { NarrativeSynthesizer } from './components/NarrativeSynthesizer';
-export { AgenticConsole } from './components/AgenticConsole';
+// export { NarrativeSynthesizer } (Deleted)
+// export { AgenticConsole } (Moved to Demo)
 
-// ──── Visual Layer ────
-export { VisualBridge } from './avatar/VisualBridge';
-export { SVGFallbackAvatar, shouldUseFallback } from './avatar/SVGFallbackAvatar';
+// ──── Visual Layer (MOVED TO DEMO) ────
+// VisualBridge and SVGFallbackAvatar are now part of the consuming app's UI layer.
 
 // ──── Core Brain ────
-export { agentMachine } from './machine/agentMachine';
+export { agentMachine, createAgentMachine } from './machine/agentMachine';
 export type { AgentContext, AgentEvent } from './machine/agentMachine';
 
 // ──── Bridge Protocol ────
@@ -34,7 +33,17 @@ export { PIISanitizer } from './bridge/PIISanitizer';
 export type { SanitizedNode } from './bridge/PIISanitizer';
 
 export { FlightRecorder } from './bridge/FlightRecorder';
-export type { FlightEntry } from './bridge/FlightRecorder';
+export type { FlightEntry } from './types/bridge';
+
+export { HeadlessBridge } from './bridge/HeadlessBridge';
+export { IngestionManager } from './bridge/IngestionManager';
+export { LocalOrchestrator } from './orchestration/LocalOrchestrator';
+export type { OrchestrationAdapter } from './types/orchestration';
+export type { VoiceBridge } from './types/bridge';
+
+// ──── Voice ────
+export { WebSpeechVoiceBridge } from './voice/WebSpeechVoiceBridge';
+export type { WebSpeechConfig } from './voice/WebSpeechVoiceBridge';
 
 // ──── Context Engine ────
 export { ContextObserver } from './context/ContextObserver';

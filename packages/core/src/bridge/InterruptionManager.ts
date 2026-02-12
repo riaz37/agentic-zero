@@ -22,6 +22,7 @@ export class InterruptionManager {
     private idleTimer: ReturnType<typeof setTimeout> | null = null;
     private config: InterruptionConfig;
     private cleanup: (() => void)[] = [];
+    private _isPaused = false;
 
     constructor(config: InterruptionConfig) {
         this.config = config;
@@ -32,6 +33,7 @@ export class InterruptionManager {
      */
     attach() {
         const handleScroll = () => {
+            if (this._isPaused) return;
             const now = Date.now();
             const dt = now - this.lastScrollTime;
             const dy = Math.abs(window.scrollY - this.lastScrollY);
@@ -50,6 +52,7 @@ export class InterruptionManager {
         };
 
         const handleClick = () => {
+            if (this._isPaused) return;
             if (this.state === 'agent-control') {
                 this.enterUserControl();
             }
@@ -57,6 +60,7 @@ export class InterruptionManager {
         };
 
         const handleKeydown = (e: KeyboardEvent) => {
+            if (this._isPaused) return;
             // Tab, arrows, space = navigation intent
             if (['Tab', 'ArrowDown', 'ArrowUp', ' '].includes(e.key)) {
                 if (this.state === 'agent-control') {
@@ -97,6 +101,24 @@ export class InterruptionManager {
      */
     returnToAgentControl() {
         this.state = 'agent-control';
+        this._isPaused = false;
+    }
+
+    /**
+     * Temporarily ignore all interactions (e.g. during automated scroll)
+     */
+    pause() {
+        this._isPaused = true;
+    }
+
+    /**
+     * Resume monitoring after pause
+     */
+    resume() {
+        this._isPaused = false;
+        // Reset scroll position tracking to avoid velocity spike after resume
+        this.lastScrollY = window.scrollY;
+        this.lastScrollTime = Date.now();
     }
 
     getState(): InterruptionState {

@@ -1,18 +1,10 @@
-/**
- * BridgeOrchestrator — The central nervous system that connects
- * all bridge modules to the XState machine.
- * 
- * This is a singleton service initialized by AgenticProvider.
- * It holds references to all bridge subsystems and provides
- * action handlers that the state machine invokes.
- */
-
 import { SelfCorrector } from './SelfCorrector';
 import { ShadowPiercer } from './ShadowPiercer';
 import { InterruptionManager } from './InterruptionManager';
 import { PIISanitizer } from './PIISanitizer';
 import { FlightRecorder } from './FlightRecorder';
 import { NarrativeEngine, NarrativeConfig } from './NarrativeEngine';
+import { AgentBridge } from '../types/bridge';
 import gsap from 'gsap';
 
 export interface BridgeConfig extends NarrativeConfig {
@@ -22,7 +14,7 @@ export interface BridgeConfig extends NarrativeConfig {
     debug?: boolean;
 }
 
-export class BridgeOrchestrator {
+export class BridgeOrchestrator implements AgentBridge {
     readonly selfCorrector: SelfCorrector;
     readonly shadowPiercer: ShadowPiercer;
     readonly interruptionManager: InterruptionManager;
@@ -33,6 +25,7 @@ export class BridgeOrchestrator {
     private sendEvent: ((event: any) => void) | null = null;
     private avatarContainer: HTMLElement | null = null;
     private config: BridgeConfig;
+    private checkpoints = new Map<string, string>();
 
     constructor(config: BridgeConfig = {}) {
         this.config = config;
@@ -55,10 +48,42 @@ export class BridgeOrchestrator {
             },
             onUserIdle: () => {
                 this.recorder.record({ type: 'state_change', from: 'interrupted', to: 'negotiating' });
-                // After idle, auto-resume
-                this.sendEvent?.({ type: 'USER_RESUME' });
+                const visibleCheckpoint = this.findVisibleCheckpoint();
+                this.sendEvent?.({ type: 'USER_RESUME', target: visibleCheckpoint });
             },
         });
+    }
+
+    private findVisibleCheckpoint(): string | undefined {
+        if (typeof document === 'undefined') return undefined;
+        // Check registered checkpoints first
+        const candidates = Array.from(this.checkpoints.keys());
+
+        // If checkpoints are empty, fallback to common structure (optional, but good for demo)
+        if (candidates.length === 0) {
+            // For now, assume if not registered, we can't find it accurately.
+            // Or querySelectorAll('[id^="section-"]')?
+            // Let's stick to registered ones for reliability.
+            return undefined;
+        }
+
+        let bestCandidate = undefined;
+        let minDistance = Infinity;
+        const centerY = window.innerHeight / 2;
+
+        for (const id of candidates) {
+            const el = document.getElementById(id);
+            if (el) {
+                const rect = el.getBoundingClientRect();
+                const distance = Math.abs(rect.top + rect.height / 2 - centerY);
+                // Check if element is at least partially in viewport and closer than others
+                if (distance < minDistance && distance < window.innerHeight) {
+                    minDistance = distance;
+                    bestCandidate = id;
+                }
+            }
+        }
+        return bestCandidate;
     }
 
     /**
@@ -68,87 +93,50 @@ export class BridgeOrchestrator {
         this.sendEvent = sendEvent;
     }
 
-    /**
-     * Register the floating avatar container for GSAP animations.
-     */
     setAvatarContainer(el: HTMLElement | null) {
         this.avatarContainer = el;
     }
 
-    /**
-     * Start monitoring user interactions (called on journey start).
-     */
     startMonitoring() {
         this.interruptionManager.attach();
-        this.recorder.record({ type: 'state_change', to: 'monitoring_started' });
+        this.recorder.recordEvent('monitoring_started');
     }
 
-    /**
-     * Stop monitoring (called on journey end or unmount).
-     */
     stopMonitoring() {
         this.interruptionManager.detach();
         this.selfCorrector.reset();
     }
 
-    // ─── Machine Action Handlers ───
+    // --- AgentBridge Implementation ---
 
-    /**
-     * Scroll the viewport to the target checkpoint element.
-     * Uses ShadowPiercer for deep queries and SelfCorrector for verification.
-     */
     async scrollToTarget(checkpointId: string): Promise<boolean> {
-        this.recorder.record({
-            type: 'bridge_action',
-            target: checkpointId,
-            metadata: { action: 'scroll_to_target' },
-        });
+        const span = this.recorder.startSpan('scroll_to_target');
+        span.setAttribute('target', checkpointId);
 
-        // Try standard query first, then deep-pierce
         let targetEl = document.getElementById(checkpointId);
         if (!targetEl) {
             const pierced = this.shadowPiercer.deepQuery(`#${checkpointId}`);
             if (pierced) {
                 targetEl = pierced.element as HTMLElement;
-                this.recorder.record({
-                    type: 'bridge_action',
-                    target: checkpointId,
-                    metadata: { action: 'shadow_pierced', path: pierced.path },
-                });
             }
         }
 
         if (!targetEl) {
-            this.recorder.record({
-                type: 'error',
-                target: checkpointId,
-                metadata: { reason: 'element_not_found' },
-            });
+            this.recorder.recordError(`Element not found: ${checkpointId}`);
+            span.end();
             return false;
         }
 
-        // Smooth scroll
+        this.interruptionManager.pause();
         targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-        // Wait for scroll to settle
         await new Promise((r) => setTimeout(r, 800));
 
-        // Self-correct: verify the target is actually in view
         const verification = await this.selfCorrector.verifyTargetInView(checkpointId);
-        if (verification.correctionApplied) {
-            this.recorder.record({
-                type: 'self_correct',
-                target: checkpointId,
-                metadata: { verification },
-            });
-        }
-
+        this.interruptionManager.resume();
+        span.end();
         return verification.success;
     }
 
-    /**
-     * Animate the avatar orb to fly to the target element's position.
-     */
     flyAvatarTo(checkpointId: string): Promise<void> {
         return new Promise((resolve) => {
             const targetEl = document.getElementById(checkpointId);
@@ -161,18 +149,13 @@ export class BridgeOrchestrator {
             const targetX = rect.left + rect.width / 2;
             const targetY = rect.top + rect.height / 2;
 
-            this.recorder.record({
-                type: 'bridge_action',
-                target: checkpointId,
-                metadata: { action: 'avatar_fly', x: targetX, y: targetY },
-            });
-
             gsap.to(this.avatarContainer, {
                 x: targetX,
-                y: targetY - 90, // Float slightly above the center
+                y: targetY - 90,
                 duration: 1.2,
                 ease: 'expo.out',
                 onComplete: () => {
+                    this.interruptionManager.resume();
                     this.interruptionManager.returnToAgentControl();
                     resolve();
                 },
@@ -180,17 +163,8 @@ export class BridgeOrchestrator {
         });
     }
 
-    /**
-     * Move the avatar to a non-intrusive corner when user takes control.
-     */
     retreatAvatar() {
         if (!this.avatarContainer) return;
-
-        this.recorder.record({
-            type: 'bridge_action',
-            metadata: { action: 'avatar_retreat' },
-        });
-
         gsap.to(this.avatarContainer, {
             x: window.innerWidth - 100,
             y: window.innerHeight - 100,
@@ -199,46 +173,38 @@ export class BridgeOrchestrator {
         });
     }
 
-    /**
-     * Extract the narrative text for a checkpoint from the DOM attributes.
-     */
     getNarrativeForCheckpoint(checkpointId: string): string {
-        if (typeof document === 'undefined') return 'Let me tell you about this section...';
+        if (this.checkpoints.has(checkpointId)) {
+            return this.sanitizer.sanitizeText(this.checkpoints.get(checkpointId)!);
+        }
+        if (typeof document === 'undefined') return 'Context unavailable.';
         const el = document.getElementById(checkpointId);
-        if (!el) return 'Let me tell you about this section...';
-
-        const narrative = el.getAttribute('data-agent-narrative');
-        if (!narrative) return 'Let me tell you about this section...';
-
-        // Sanitize the narrative through PII filter
+        const narrative = el?.getAttribute('data-agent-narrative') || 'Let me tell you about this section...';
         return this.sanitizer.sanitizeText(narrative);
     }
 
-    /**
-     * Kill all active GSAP animations (pause state).
-     */
+    registerCheckpoint(id: string, narrative: string) {
+        this.checkpoints.set(id, narrative);
+    }
+
+    async generateNarrative(checkpointId: string): Promise<string> {
+        const contextText = this.getNarrativeForCheckpoint(checkpointId);
+        return this.narrativeEngine.generateNarrative(contextText, this.config.persona);
+    }
+
+    async generateAnswer(question: string, context?: string): Promise<string> {
+        return this.narrativeEngine.generateAnswer(question, context);
+    }
+
+    async streamNarrative(checkpointId: string): Promise<ReadableStream<string>> {
+        const contextText = this.getNarrativeForCheckpoint(checkpointId);
+        return this.narrativeEngine.generateStream(contextText, this.config.persona);
+    }
+
     killAllAnimations() {
         gsap.killTweensOf(this.avatarContainer);
-        this.recorder.record({
-            type: 'bridge_action',
-            metadata: { action: 'animations_killed' },
-        });
     }
 
-    /**
-     * Generate and stream a narrative for a checkpoint.
-     */
-    async streamNarrative(checkpointId: string): Promise<ReadableStream<string>> {
-        const el = document.getElementById(checkpointId);
-        const staticNarrative = el?.getAttribute('data-agent-narrative') || 'Let me tell you about this section...';
-
-        // Pass the static narrative as context to the AI
-        return this.narrativeEngine.generateStream(staticNarrative);
-    }
-
-    /**
-     * Get the current flight log for debugging.
-     */
     getFlightLog() {
         return this.recorder.export();
     }

@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useAgent } from '../components/AgenticProvider';
+import { useAgent } from '@agentic-zero/core';
 import gsap from 'gsap';
 
 export const VisualBridge: React.FC = () => {
-    const { state, send, bridge } = useAgent();
+    const { state, bridge } = useAgent();
     const containerRef = useRef<HTMLDivElement>(null);
     const bubbleRef = useRef<HTMLDivElement>(null);
     const [displayText, setDisplayText] = useState('');
@@ -16,48 +16,29 @@ export const VisualBridge: React.FC = () => {
         }
     }, [bridge]);
 
-    // Narrative Streaming Logic (Moved from NarrativeSynthesizer)
+    // Narrative Streaming Logic
+    // Now observes the machine's buffer directly to ensure sync with voice
     useEffect(() => {
         if (state.matches('narrating')) {
+            const fullText = state.context.narrativeBuffer || '';
             setDisplayText('');
-            let isCancelled = false;
 
-            const startStreaming = async () => {
-                try {
-                    const stream = await bridge.streamNarrative(state.context.currentCheckpoint!);
-                    const reader = stream.getReader();
+            // Simple typewriter effect to match the "feel" of streaming
+            let i = 0;
+            const timer = setInterval(() => {
+                i++;
+                setDisplayText(fullText.substring(0, i));
+                if (i >= fullText.length) clearInterval(timer);
+            }, 30); // 30ms per char
 
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done || isCancelled) break;
-                        setDisplayText((prev) => prev + value);
-                    }
-
-                    if (!isCancelled) {
-                        setTimeout(() => {
-                            if (!isCancelled) send({ type: 'NARRATION_COMPLETE' });
-                        }, 2000);
-                    }
-                } catch (err) {
-                    console.error('AgenticZero: Narration failed', err);
-                    setDisplayText('I had trouble analyzing this section...');
-                    if (!isCancelled) {
-                        setTimeout(() => {
-                            if (!isCancelled) send({ type: 'NARRATION_COMPLETE' });
-                        }, 3000);
-                    }
-                }
-            };
-
-            startStreaming();
-            return () => { isCancelled = true; };
+            return () => clearInterval(timer);
         }
-    }, [state.value, state.context.currentCheckpoint, bridge, send]);
+    }, [state.value, state.context.narrativeBuffer]);
 
     // Animate Speech Bubble
     useEffect(() => {
         const isVisible = state.matches('narrating') || state.matches('thinking');
-        if (isVisible) {
+        if (isVisible && bubbleRef.current) {
             gsap.to(bubbleRef.current, {
                 opacity: 1,
                 scale: 1,
@@ -65,7 +46,7 @@ export const VisualBridge: React.FC = () => {
                 duration: 0.4,
                 ease: 'back.out(1.7)'
             });
-        } else {
+        } else if (bubbleRef.current) {
             gsap.to(bubbleRef.current, {
                 opacity: 0,
                 scale: 0.8,

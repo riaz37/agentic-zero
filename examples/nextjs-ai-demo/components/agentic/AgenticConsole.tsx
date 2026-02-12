@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAgent } from './AgenticProvider';
-import { FlightEntry } from '../bridge/FlightRecorder';
+import { useAgent, FlightEntry } from '@agentic-zero/core';
 
 export const AgenticConsole: React.FC = () => {
     const { state, bridge } = useAgent();

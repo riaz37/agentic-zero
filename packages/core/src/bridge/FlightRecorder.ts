@@ -1,41 +1,71 @@
+import { TelemetryProvider, TelemetrySpan, FlightEntry } from '../types/bridge';
+
 /**
- * FlightRecorder — Observability & Debugging Module
+ * FlightRecorder — Observability & Telemetry Module
  * 
- * Records agent state transitions, bridge actions, and errors
- * for post-mortem debugging. Integrates with external analytics.
+ * Implements industry-standard tracing patterns with support for 
+ * Spans, Traces, and semantic AI conventions.
  */
-
-export interface FlightEntry {
-    timestamp: number;
-    type: 'state_change' | 'bridge_action' | 'error' | 'user_interrupt' | 'self_correct';
-    from?: string;
-    to?: string;
-    target?: string;
-    metadata?: Record<string, unknown>;
-}
-
-export class FlightRecorder {
+export class FlightRecorder implements TelemetryProvider {
     private log: FlightEntry[] = [];
-    private maxEntries = 500;
+    private maxEntries = 1000;
     private sessionId: string;
 
     constructor() {
         this.sessionId = this.generateSessionId();
     }
 
+    /**
+     * Legacy record method (maintained for compatibility)
+     */
     record(entry: Omit<FlightEntry, 'timestamp'>) {
         const full: FlightEntry = { ...entry, timestamp: Date.now() };
         this.log.push(full);
 
-        // Ring buffer: keep last N entries
         if (this.log.length > this.maxEntries) {
             this.log = this.log.slice(-this.maxEntries);
         }
 
-        // Console output in dev mode
         if (process.env.NODE_ENV === 'development') {
-            console.log(`[FlightRecorder] ${entry.type}`, entry);
+            console.log(`[Telemetry] ${entry.type}`, entry);
         }
+    }
+
+    // --- TelemetryProvider Implementation ---
+
+    startSpan(name: string, parentContext?: any): TelemetrySpan {
+        const spanId = Math.random().toString(36).slice(2, 9);
+        const startTime = Date.now();
+
+        this.recordEvent(`span_start:${name}`, { spanId, parentContext });
+
+        return {
+            setAttribute: (key: string, value: any) => {
+                this.recordEvent(`span_attr:${name}`, { spanId, [key]: value });
+            },
+            end: () => {
+                const duration = Date.now() - startTime;
+                this.recordEvent(`span_end:${name}`, { spanId, duration });
+            }
+        };
+    }
+
+    recordEvent(name: string, attributes?: Record<string, any>) {
+        this.record({
+            type: 'bridge_action',
+            metadata: { event: name, ...attributes }
+        });
+    }
+
+    recordError(error: Error | string, attributes?: Record<string, any>) {
+        this.record({
+            type: 'error',
+            metadata: {
+                message: error instanceof Error ? error.message : error,
+                stack: error instanceof Error ? error.stack : undefined,
+                ...attributes
+            }
+        });
     }
 
     /**
@@ -48,28 +78,19 @@ export class FlightRecorder {
         };
     }
 
-    /**
-     * Get the last N entries (for quick debugging).
-     */
     tail(n = 10): FlightEntry[] {
         return this.log.slice(-n);
     }
 
-    /**
-     * Get all errors in the current session.
-     */
     errors(): FlightEntry[] {
         return this.log.filter((e) => e.type === 'error');
     }
 
-    /**
-     * Clear the log (e.g., on page unload).
-     */
     clear() {
         this.log = [];
     }
 
     private generateSessionId(): string {
-        return `awf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        return `az-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     }
 }
