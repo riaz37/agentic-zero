@@ -7,7 +7,6 @@ export { NarrativeSynthesizer } from './components/NarrativeSynthesizer';
 export { AgenticConsole } from './components/AgenticConsole';
 
 // ──── Visual Layer ────
-export { HolographicAvatar } from './avatar/HolographicAvatar';
 export { VisualBridge } from './avatar/VisualBridge';
 export { SVGFallbackAvatar, shouldUseFallback } from './avatar/SVGFallbackAvatar';
 

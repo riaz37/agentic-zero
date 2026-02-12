@@ -20,7 +20,9 @@ export default defineConfig({
         rollupOptions: {
             external: [
                 'react',
+                'react/jsx-runtime',
                 'react-dom',
+                'react-dom/client',
                 'three',
                 '@react-three/fiber',
                 '@react-three/drei',

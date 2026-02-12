@@ -56,15 +56,11 @@
     "vitest": "^4.0.18"
   },
   "dependencies": {
-    "@react-three/drei": "^10.7.7",
-    "@react-three/fiber": "^9.5.0",
-    "@types/three": "^0.182.0",
     "@xstate/react": "^6.0.0",
     "ai": "^6.0.82",
     "framer-motion": "^12.34.0",
     "gsap": "^3.14.2",
     "lucide-react": "^0.563.0",
-    "three": "^0.182.0",
     "xstate": "^5.27.0"
   }
 }

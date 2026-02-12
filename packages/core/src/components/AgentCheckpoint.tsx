@@ -16,10 +16,9 @@ export const AgentCheckpoint: React.FC<AgentCheckpointProps> = ({
     priority = 100,
     children
 }) => {
-    // We access the context just to ensure we are inside the provider,
-    // but we don't strictly need to read state here for the basic functionality anymore.
     // The Provider scans for [data-agent-checkpoint] on mount.
-    useAgent();
+    // No need to verify context here to avoid SSR issues.
+
 
     return (
         <div

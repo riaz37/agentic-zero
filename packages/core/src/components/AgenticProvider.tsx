@@ -5,7 +5,6 @@ import { useMachine } from '@xstate/react';
 import { createAgentMachine } from '../machine/agentMachine';
 import { BridgeOrchestrator, BridgeConfig } from '../bridge/BridgeOrchestrator';
 import { VisualBridge } from '../avatar/VisualBridge';
-import { NarrativeSynthesizer } from './NarrativeSynthesizer';
 import { AgenticConsole } from './AgenticConsole';
 
 export interface AgentContextType {
@@ -58,9 +57,23 @@ export const AgenticProvider: React.FC<{
 
         if (config?.autoStart) {
             setTimeout(() => {
-                const checkpoints = Array.from(
-                    document.querySelectorAll('[data-agent-checkpoint]')
-                ).map((el) => el.getAttribute('id') || '');
+                const findAllCheckpoints = (root: Document | ShadowRoot): string[] => {
+                    let found: string[] = [];
+                    // Find in current root
+                    const elements = Array.from(root.querySelectorAll('[data-agent-checkpoint]'));
+                    found.push(...elements.map(el => el.getAttribute('id') || ''));
+
+                    // Recursive search into child shadow roots
+                    const allEls = root.querySelectorAll('*');
+                    allEls.forEach(el => {
+                        if (el.shadowRoot) {
+                            found.push(...findAllCheckpoints(el.shadowRoot));
+                        }
+                    });
+                    return found;
+                };
+
+                const checkpoints = findAllCheckpoints(document);
 
                 if (checkpoints.length > 0) {
                     send({ type: 'START_JOURNEY', initialQueue: checkpoints });
@@ -79,7 +92,6 @@ export const AgenticProvider: React.FC<{
         <AgentContext.Provider value={{ state, send, bridge }}>
             {children}
             <VisualBridge />
-            <NarrativeSynthesizer />
             {config?.debug && <AgenticConsole />}
         </AgentContext.Provider>
     );
@@ -87,6 +99,21 @@ export const AgenticProvider: React.FC<{
 
 export const useAgent = () => {
     const context = useContext(AgentContext);
-    if (!context) throw new Error('useAgent must be used within AgenticProvider');
+    if (!context) {
+        if (typeof window === 'undefined') {
+            return {
+                state: {
+                    value: 'idle',
+                    context: {},
+                    matches: () => false
+                },
+                send: () => { },
+                bridge: {
+                    streamNarrative: async () => new ReadableStream()
+                }
+            } as any;
+        }
+        throw new Error('useAgent must be used within AgenticProvider');
+    }
     return context;
 };
